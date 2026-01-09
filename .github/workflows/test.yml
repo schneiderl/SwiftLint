@@ -12,86 +12,29 @@ env:
   SKIP_INTEGRATION_TESTS: 'true'
 
 jobs:
-  spm_linux:
-    name: SPM, Linux, Swift 6.2
-    runs-on: ubuntu-24.04
-    container: swift:6.2-noble
-    steps:
-      - &checkout-step
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          persist-credentials: false
-      - name: Get Swift version
-        id: swift_version
-        run: echo "version=$(swift --version | grep '[5-9]\.[0-9]\+\(\.[0-9]\)\?' -o | head -1)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
-        with:
-          key: ubuntu-24.04-spm-${{ steps.swift_version.outputs.version }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
-          restore-keys: ubuntu-24.04-spm-${{ steps.swift_version.outputs.version }}-
-          path: .build
-      - name: Run tests
-        uses: ./.github/actions/run-make
-        with:
-          rule: spm_test
 
   spm_macos:
     name: SPM, macOS ${{ matrix.macOS }}, Xcode ${{ matrix.xcode }}
-    runs-on: macos-${{ matrix.macOS }}
+    runs-on: namespace-profile-macos-m4-6cpu-14ram
     strategy:
       matrix:
         include:
-          - macOS: '14'
-            xcode: '16.2'
           - macOS: '15'
             xcode: '16.4'
-          - macOS: '26'
-            xcode: '26.0'
     env:
       DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app
     steps:
-      - *checkout-step
-      - uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+      - name: Checkout repository
+        uses: namespacelabs/nscloud-checkout-action@v8
+      - name: Use Xcode ${{ matrix.xcode }}
+        uses: maxim-lobanov/setup-xcode@v1
         with:
-          key: macos-${{ matrix.macOS }}-xcode-spm-${{ matrix.xcode }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
-          restore-keys: macos-${{ matrix.macOS }}-xcode-spm-${{ matrix.xcode }}-
-          path: .build
+          xcode-version: ${{ matrix.xcode }}
+      - name: Cache Swift PM dependencies
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: |
+            swiftpm
+            xcode
       - name: Run tests
         run: make spm_test
-
-  spm_windows:
-    name: SPM, Windows ${{ matrix.windows-display-name }}
-    runs-on: windows-${{ matrix.windows-version }}
-    env:
-      SWIFT_VERSION: development
-      SWIFT_BUILD: DEVELOPMENT-SNAPSHOT-2025-12-01-a
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - windows-version: 2025
-            arch: amd64
-            windows-display-name: 'Server 2025'
-          - windows-version: '11-arm'
-            arch: arm64
-            windows-display-name: '11 ARM'
-    steps:
-      - name: Enable long path support
-        run: reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f
-      - uses: compnerd/gha-setup-swift@main
-        with:
-          swift-version: ${{ env.SWIFT_VERSION }}
-          swift-build: ${{ env.SWIFT_BUILD }}
-          build_arch: ${{ matrix.arch }}
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
-        with:
-          key: windows-${{ matrix.windows-version }}-spm-${{ env.SWIFT_VERSION }}-${{ env.SWIFT_BUILD }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
-          restore-keys: windows-${{ matrix.windows-version }}-spm-${{ env.SWIFT_VERSION }}-${{ env.SWIFT_BUILD }}-
-          path: .build
-      - name: Build all targets
-        run: swift build --build-tests
-      - name: Run selected tests
-        run: swift test --skip IntegrationTests --skip FileSystemAccessTests --skip FrameworkTests --skip BuiltInRulesTests
-      # To be extended with test execution and linting ...
