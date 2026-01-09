@@ -15,26 +15,26 @@ jobs:
 
   spm_macos:
     name: SPM, macOS ${{ matrix.macOS }}, Xcode ${{ matrix.xcode }}
-    runs-on: namespace-profile-macos-m4-6cpu-14ram
+    runs-on: namespace-profile-mac-cache
     strategy:
       matrix:
         include:
           - macOS: '15'
             xcode: '16.4'
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app
     steps:
       - name: Checkout repository
         uses: namespacelabs/nscloud-checkout-action@v8
-      - name: Use Xcode ${{ matrix.xcode }}
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: ${{ matrix.xcode }}
-      - name: Cache Swift PM dependencies
+      - name: Setup Xcode & Swift cache
         uses: namespacelabs/nscloud-cache-action@v1
         with:
           cache: |
-            swiftpm
             xcode
+            swift
+            ruby
+      - name: Select Xcode 16.4
+        run: |
+          if [ -d "/Applications/Xcode_16.4.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_16.4.app
+          fi
       - name: Run tests
         run: make spm_test
