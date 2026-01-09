@@ -29,7 +29,7 @@ jobs:
         with:
           cache: |
             xcode
-            swift
+            swiftpm
             ruby
       - name: Select Xcode 16.4
         run: |
