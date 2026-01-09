@@ -15,7 +15,7 @@ jobs:
 
   spm_macos:
     name: SPM, macOS ${{ matrix.macOS }}, Xcode ${{ matrix.xcode }}
-    runs-on: [nscloud-macos-sequoia-arm64-6x14-with-cache, nscloud-git-mirror-5gb]
+    runs-on: [nscloud-macos-sequoia-arm64-6x14-with-cache, nscloud-cache-size-50gb, nscloud-cache-tag-my-cache-key, nscloud-git-mirror-5gb]
     strategy:
       matrix:
         include:
