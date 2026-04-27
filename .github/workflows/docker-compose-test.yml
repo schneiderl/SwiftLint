@@ -1,0 +1,51 @@
+name: Docker Compose Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker_compose:
+    name: Mongo and Redis via Docker Compose
+    runs-on: namespace-profile-default
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: namespacelabs/nscloud-checkout-action@v8
+
+      - name: Show Docker versions
+        run: |
+          docker version
+          docker compose version
+
+      - name: Start MongoDB and Redis
+        run: docker compose -f .github/docker-compose/docker-compose.yml up -d --wait
+
+      - name: Test MongoDB read and write
+        run: |
+          docker compose -f .github/docker-compose/docker-compose.yml exec -T mongo \
+            mongosh --quiet --eval '
+              const collection = db.getSiblingDB("github_actions").compose_smoke;
+              collection.deleteMany({});
+              collection.insertOne({ name: "namespace", value: 42 });
+
+              const document = collection.findOne({ name: "namespace" });
+              if (!document || document.value !== 42) {
+                throw new Error(`Unexpected MongoDB document: ${JSON.stringify(document)}`);
+              }
+
+              printjson(document);
+            '
+
+      - name: Test Redis is reachable
+        run: docker compose -f .github/docker-compose/docker-compose.yml exec -T redis redis-cli ping
+
+      - name: Stop Docker Compose stack
+        if: always()
+        run: docker compose -f .github/docker-compose/docker-compose.yml down --volumes
